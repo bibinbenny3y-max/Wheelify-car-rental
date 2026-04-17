@@ -1,0 +1,32 @@
+# Claude Code internal
+.claude/
+
+# Credentials / secrets
+CREDENTIALS.txt
+.env
+*.env.*
+backend/config/master.key
+backend/config/credentials.yml.enc
+
+# Rails
+backend/log/*.log
+backend/tmp/
+backend/storage/
+backend/public/assets/
+backend/.bundle/
+backend/vendor/bundle/
+backend/node_modules/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.swp
