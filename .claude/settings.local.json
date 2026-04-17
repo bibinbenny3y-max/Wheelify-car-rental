@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find \"D:\\\\LUCINTEL-PROJETCS\\\\BIBBIN_\" -type f -name \"*.rb\" -o -name \"*.jsx\" -o -name \"*.js\" -o -name \"*.json\" -o -name \"*.yml\" -o -name \"*.yaml\" -o -name \"Gemfile\" -o -name \"Rakefile\" -o -name \".env*\" 2>/dev/null | head -100)",
+      "Bash(grep -E \"\\\\.\\(docx|pdf|txt|md\\)$\")",
+      "Bash(ls -lh /d/LUCINTEL-PROJETCS/BIBBIN_/*.*)",
+      "Bash(node:*)",
+      "Bash(find D:LUCINTEL-PROJETCSBIBBIN_frontendsrc -type f -name *auth*)",
+      "Bash(python generate_diagrams.py)",
+      "Bash(python generate_tables.py)",
+      "Bash(python generate_code_snippets.py)",
+      "Bash(ls \"D:/LUCINTEL-PROJETCS/BIBBIN_/PHOTOS/\"*.png)",
+      "Bash(grep -E \"\\\\.\\(html|jsx|js|json\\)$\")",
+      "Bash(xargs grep:*)"
+    ]
+  }
+}

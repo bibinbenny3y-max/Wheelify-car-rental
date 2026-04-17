@@ -1,0 +1,1400 @@
+================================================================================
+       BIBBIN VEHICLE RENTAL PLATFORM — TECHNICAL DOCUMENTATION
+================================================================================
+Project:  BSc Computer Science Final Year Project
+Author:   Bibin Benny
+Date:     March 2026
+Version:  1.0 (Production-Ready Prototype)
+================================================================================
+
+
+TABLE OF CONTENTS
+-----------------
+1.  Project Overview
+2.  Technology Stack
+3.  Directory Structure
+4.  Backend Architecture
+    4.1  Database Schema & Migrations
+    4.2  Models
+    4.3  Controllers
+    4.4  Authentication & Authorization
+    4.5  Routes
+    4.6  Seeds & Demo Data
+    4.7  Test Suite (RSpec)
+    4.8  Gemfile Dependencies
+5.  Frontend Architecture
+    5.1  Build & Configuration
+    5.2  State Management (Zustand)
+    5.3  API Service Layer
+    5.4  Routing
+    5.5  Pages
+    5.6  Components
+    5.7  Styling
+6.  Key Workflows
+    6.1  Customer Booking Flow
+    6.2  Owner Listing Flow
+    6.3  Admin Approval Flow
+7.  Critical Feature Implementations
+8.  Issues & Inconsistencies
+9.  Security Analysis
+10. Setup & Deployment Guide
+
+
+================================================================================
+1. PROJECT OVERVIEW
+================================================================================
+
+Bibbin is a three-tier vehicle rental marketplace web application. It allows
+customers to rent vehicles listed by owners, with admins moderating the
+platform.
+
+Roles:
+  - Customer   : Browses and books approved vehicles; makes payments.
+  - Owner      : Lists vehicles (pending admin approval); manages bookings
+                 on their vehicles; tracks earnings.
+  - Admin      : Approves or rejects vehicle listings; manages users;
+                 views platform-wide statistics.
+
+The platform uses a React SPA frontend communicating with a Rails 7.1 JSON API
+backend over HTTP. Authentication is handled entirely via JWT tokens.
+
+
+================================================================================
+2. TECHNOLOGY STACK
+================================================================================
+
+BACKEND
+  - Ruby on Rails 7.1 (API-only mode)
+  - PostgreSQL (relational database)
+  - Devise + devise-jwt (authentication + JWT token issuance)
+  - rack-cors (cross-origin request policy)
+  - Active Storage (image uploads — local disk in development)
+  - image_processing gem (image transforms)
+  - RSpec + FactoryBot (test suite)
+  - Puma (web server)
+  - Module namespace: VehicleRental
+
+FRONTEND
+  - React 18.2.0
+  - Vite 5.0.0 (bundler/dev server on port 5173)
+  - React Router DOM 6.22.0 (client-side routing)
+  - Axios 1.6.0 (HTTP client)
+  - Zustand 4.5.2 (global state management)
+  - TailwindCSS 3.4.13 (utility-first styling)
+  - PostCSS + Autoprefixer
+  - PayPal SDK (referenced, not actively integrated — demo mode)
+
+COMMUNICATION
+  - API Base URL: http://localhost:3000/api
+  - Auth Header:  Authorization: Bearer <JWT_TOKEN>
+  - Exposed CORS Header: Authorization
+
+
+================================================================================
+3. DIRECTORY STRUCTURE
+================================================================================
+
+D:\LUCINTEL-PROJETCS\BIBBIN_\
+│
+├── backend/                               (Rails 7.1 API)
+│   ├── app/
+│   │   ├── controllers/
+│   │   │   └── api/
+│   │   │       ├── auth/
+│   │   │       │   ├── registrations_controller.rb
+│   │   │       │   ├── sessions_controller.rb
+│   │   │       │   └── passwords_controller.rb
+│   │   │       ├── admin/
+│   │   │       │   ├── dashboard_controller.rb
+│   │   │       │   └── users_controller.rb
+│   │   │       ├── base_controller.rb
+│   │   │       ├── bookings_controller.rb
+│   │   │       ├── payments_controller.rb
+│   │   │       ├── profiles_controller.rb
+│   │   │       └── vehicles_controller.rb
+│   │   ├── models/
+│   │   │   ├── application_record.rb
+│   │   │   ├── user.rb
+│   │   │   ├── vehicle.rb
+│   │   │   ├── booking.rb
+│   │   │   └── payment.rb
+│   ├── config/
+│   │   ├── application.rb
+│   │   ├── boot.rb
+│   │   ├── environment.rb
+│   │   ├── routes.rb
+│   │   ├── database.yml
+│   │   ├── storage.yml
+│   │   ├── puma.rb
+│   │   ├── initializers/
+│   │   │   ├── cors.rb
+│   │   │   └── devise.rb
+│   │   └── environments/
+│   │       ├── development.rb
+│   │       ├── test.rb
+│   │       └── production.rb
+│   ├── db/
+│   │   ├── migrate/
+│   │   │   ├── 001_devise_create_users.rb
+│   │   │   ├── 002_create_vehicles.rb
+│   │   │   ├── 003_create_bookings.rb
+│   │   │   ├── 004_create_payments.rb
+│   │   │   └── 20260306061907_create_active_storage_tables.active_storage.rb
+│   │   ├── schema.rb
+│   │   └── seeds.rb
+│   ├── spec/
+│   │   ├── rails_helper.rb
+│   │   ├── spec_helper.rb
+│   │   ├── factories.rb
+│   │   ├── models/
+│   │   │   └── booking_spec.rb
+│   │   └── requests/api/
+│   │       ├── auth_spec.rb
+│   │       ├── vehicles_spec.rb
+│   │       ├── bookings_spec.rb
+│   │       ├── payments_spec.rb
+│   │       └── admin_spec.rb
+│   ├── Gemfile
+│   ├── Rakefile
+│   ├── config.ru
+│   └── SETUP.md
+│
+└── frontend/                              (React + Vite)
+    ├── src/
+    │   ├── app/
+    │   │   ├── authStore.js
+    │   │   ├── vehicleStore.js
+    │   │   └── bookingStore.js
+    │   ├── components/
+    │   │   ├── common/
+    │   │   │   ├── Navbar.jsx
+    │   │   │   ├── Footer.jsx
+    │   │   │   ├── LoginForm.jsx
+    │   │   │   └── ProtectedRoute.jsx
+    │   │   └── vehicle/
+    │   │       └── VehicleCard.jsx
+    │   ├── pages/
+    │   │   ├── Home.jsx
+    │   │   ├── Login.jsx
+    │   │   ├── Register.jsx
+    │   │   ├── Vehicles.jsx
+    │   │   ├── VehicleDetails.jsx
+    │   │   ├── Dashboard.jsx
+    │   │   ├── Payment.jsx
+    │   │   ├── History.jsx
+    │   │   ├── ListVehicle.jsx
+    │   │   ├── EditVehicle.jsx
+    │   │   ├── OwnerDashboard.jsx
+    │   │   ├── AdminDashboard.jsx
+    │   │   ├── Profile.jsx
+    │   │   └── ForgotPassword.jsx
+    │   ├── routes/
+    │   │   └── AppRoutes.jsx
+    │   ├── services/
+    │   │   └── api.js
+    │   ├── App.jsx
+    │   ├── main.jsx
+    │   └── index.css
+    ├── package.json
+    ├── vite.config.js
+    ├── tailwind.config.js
+    └── postcss.config.js
+
+
+================================================================================
+4. BACKEND ARCHITECTURE
+================================================================================
+
+------------------------------------------------------------------------
+4.1  DATABASE SCHEMA & MIGRATIONS
+------------------------------------------------------------------------
+
+TABLE: users
+  id            integer       PRIMARY KEY
+  name          string        NOT NULL
+  email         string        NOT NULL, UNIQUE
+  role          string        NOT NULL, DEFAULT 'customer'
+                              VALUES: customer | owner | admin
+  phone         string
+  jti           string        NOT NULL, UNIQUE  (JWT revocation identifier)
+  encrypted_password  string  (Devise)
+  reset_password_token        (Devise)
+  reset_password_sent_at      (Devise)
+  created_at, updated_at
+
+TABLE: vehicles
+  id            integer       PRIMARY KEY
+  name          string        NOT NULL
+  vehicle_type  string        NOT NULL  (Car | Bike)
+  model         string
+  location      string
+  rate          decimal       NOT NULL  (daily rate in GBP)
+  description   text
+  status        string        NOT NULL, DEFAULT 'pending'
+                              VALUES: pending | approved | rejected
+  owner_id      integer       FK → users.id
+  created_at, updated_at
+
+  INDEXES: status, location, owner_id
+
+TABLE: bookings
+  id            integer       PRIMARY KEY
+  vehicle_id    integer       FK → vehicles.id
+  renter_id     integer       FK → users.id
+  start_date    date          NOT NULL
+  end_date      date          NOT NULL
+  total_price   decimal
+  status        string        NOT NULL, DEFAULT 'pending'
+                              VALUES: pending | confirmed | cancelled
+  created_at, updated_at
+
+  INDEXES: (vehicle_id, start_date, end_date) composite for overlap queries
+
+TABLE: payments
+  id            integer       PRIMARY KEY
+  booking_id    integer       FK → bookings.id
+  amount        decimal
+  currency      string        DEFAULT 'GBP'
+  status        string        DEFAULT 'pending'
+                              VALUES: pending | completed | failed
+  paypal_order_id  string     (stores demo transaction ID)
+  payer_name    string
+  created_at, updated_at
+
+TABLE: active_storage_attachments
+TABLE: active_storage_blobs
+  (Auto-generated by Rails Active Storage for image uploads)
+
+MIGRATION SUMMARY:
+  001 — devise_create_users.rb        : Users table with Devise fields + JTI
+  002 — create_vehicles.rb            : Vehicles table
+  003 — create_bookings.rb            : Bookings table with composite index
+  004 — create_payments.rb            : Payments table
+  Active Storage migration            : Auto-generated for image handling
+
+
+------------------------------------------------------------------------
+4.2  MODELS
+------------------------------------------------------------------------
+
+MODEL: User  (app/models/user.rb)
+  - Inherits ApplicationRecord, includes Devise::JWT::RevocationStrategies::JTIMatcher
+  - Devise modules: :database_authenticatable, :registerable, :recoverable,
+                    :validatable, :jwt_authenticatable
+  - Associations:
+      has_many :vehicles, foreign_key: :owner_id
+      has_many :bookings, foreign_key: :renter_id
+      has_one_attached :avatar
+  - Constants:
+      ROLES = %w[customer owner admin]
+  - Validations:
+      name       presence: true
+      email      presence, uniqueness
+      role       inclusion in ROLES
+  - Helper Methods:
+      admin?()   → role == "admin"
+      owner?()   → role == "owner"
+
+MODEL: Vehicle  (app/models/vehicle.rb)
+  - Associations:
+      belongs_to :owner, class_name: "User"
+      has_many :bookings
+      has_many_attached :images
+  - Constants:
+      STATUSES = %w[pending approved rejected]
+      TYPES    = %w[Car Bike]
+  - Validations:
+      name, vehicle_type, rate, owner   presence: true
+      vehicle_type   inclusion in TYPES
+      status         inclusion in STATUSES
+      rate           numericality (greater than 0)
+  - Methods:
+      approve!()  → update(status: "approved")
+      reject!()   → update(status: "rejected")
+  - Scopes:
+      scope :approved  → where(status: "approved")
+      scope :pending   → where(status: "pending")
+
+MODEL: Booking  (app/models/booking.rb)
+  - Associations:
+      belongs_to :vehicle
+      belongs_to :renter, class_name: "User"
+      has_one :payment
+  - Constants:
+      STATUSES = %w[pending confirmed cancelled]
+  - Validations:
+      vehicle_id, renter_id, start_date, end_date   presence: true
+      status   inclusion in STATUSES
+      Custom: end_date_after_start_date
+      Custom: dates_must_not_overlap (only on confirmed bookings)
+  - Callbacks:
+      before_validation :calculate_total_price
+  - Price Calculation:
+      days = (end_date - start_date).to_i
+      total_price = days * vehicle.rate
+  - Overlap Detection Logic:
+      vehicle.bookings.where(status: "confirmed")
+                      .where.not(id: self.id)
+                      .where("start_date < ? AND end_date > ?", end_date, start_date)
+      IMPORTANT: Only confirmed bookings block dates. Pending/cancelled are ignored.
+
+MODEL: Payment  (app/models/payment.rb)
+  - Associations:
+      belongs_to :booking
+  - Constants:
+      STATUSES = %w[pending completed failed]
+  - Defaults:
+      currency = "GBP"
+      status   = "pending"
+  - Validations:
+      booking_id, amount   presence: true
+      status   inclusion in STATUSES
+      amount   numericality (greater than 0)
+
+
+------------------------------------------------------------------------
+4.3  CONTROLLERS
+------------------------------------------------------------------------
+
+=== AUTH CONTROLLERS (api/auth/) ===
+
+RegistrationsController  (POST /api/auth/register)
+  - Inherits: Devise::RegistrationsController
+  - Action: create
+    * Reads name, email, password, role from params
+    * Forces role to "customer" if "admin" is passed (security guard)
+    * Creates user via User.create!
+    * Does NOT auto-sign-in after registration
+    * Returns: { user: { id, name, email, role } } or errors 422
+  - Security note: Admin self-registration is explicitly blocked.
+
+SessionsController  (POST/DELETE /api/auth/login-logout)
+  - Inherits: Devise::SessionsController
+  - Action: create (login)
+    * Authenticates via email/password
+    * Generates JWT via Warden::JWTAuth::UserEncoder
+    * Sets Authorization response header
+    * Returns: { user: { id, name, email, role } }
+    * Failure: 401 Unauthorized
+  - Action: destroy (logout)
+    * Rotates user's JTI (invalidates all existing tokens)
+    * Returns: { message: "Logged out" }
+
+PasswordsController  (POST /api/auth/password/reset)
+  - DEMO MODE: No email verification
+  - Finds user by email
+  - Directly updates password
+  - Returns: { message: "Password reset successfully" } or 404
+
+
+=== VehiclesController  (api/vehicles_controller.rb) ===
+
+GET  /api/vehicles  (public, no auth required)
+  - Default: returns only approved vehicles
+  - With ?all=true  (admin only): returns all vehicles regardless of status
+  - With ?mine=true (owner only): returns owner's own vehicles
+  - Query filters:
+      ?search=term    → name ILIKE '%term%'
+      ?location=city  → location = city
+      ?max_price=N    → rate <= N
+      ?type=Car|Bike  → vehicle_type = type
+  - Returns: array of vehicle objects with image_url
+
+GET  /api/vehicles/:id  (public)
+  - Returns single vehicle with full details + image_url + confirmed booking dates
+
+POST  /api/vehicles  (owner/admin only)
+  - Accepts: name, vehicle_type, model, location, rate, description, images[]
+  - Sets status = "pending" automatically
+  - Attaches images via Active Storage
+
+PUT  /api/vehicles/:id  (owner of vehicle / admin)
+  - Updates vehicle fields
+  - Optionally replaces images
+
+PUT  /api/vehicles/:id/approve  (admin only)
+  - Calls vehicle.approve!()
+
+PUT  /api/vehicles/:id/reject  (admin only)
+  - Calls vehicle.reject!()
+
+DELETE  /api/vehicles/:id  (owner of vehicle / admin)
+  - Destroys vehicle record
+
+Image URL Generation:
+  - If vehicle has Active Storage attachments: url_for(vehicle.images.first)
+  - Else: hardcoded fallback map for known vehicle names
+  - Map keys: bmw m4, bmw i4, g-wagon, ford mustang, porsche 911, etc.
+
+
+=== BookingsController  (api/bookings_controller.rb) ===
+
+GET  /api/bookings  (authenticated — any role)
+  - Returns current_user's bookings as renter
+  - Includes: vehicle name, dates, total_price, status, payment info
+
+GET  /api/bookings/owner  (owner/admin only)
+  - Returns all bookings for vehicles owned by current_user
+  - Useful for Owner Dashboard
+
+POST  /api/bookings  (authenticated — non-owner for own vehicles)
+  - Creates a booking in "pending" status
+  - Parameters: vehicle_id, start_date, end_date
+  - Price calculated automatically in model
+
+DELETE  /api/bookings/:id  (renter only)
+  - Cancels booking (sets status = "cancelled")
+  - Only renter can cancel their own booking
+
+PUT  /api/bookings/:id/cancel_by_owner  (owner of that vehicle)
+  - Owner cancels a confirmed booking
+
+
+=== PaymentsController  (api/payments_controller.rb) ===
+
+POST  /api/payments/capture  (authenticated — non-owner restriction)
+  - This is the "checkout" action combining booking + payment
+  - Parameters: vehicle_id, start_date, end_date, total_price,
+                paypal_order_id, payer_name
+  - Process:
+      1. Find or create a pending booking for these dates
+      2. Mark booking as "confirmed"
+      3. Create Payment record (status: "completed")
+      4. Server recalculates price from vehicle.rate × days
+  - Returns: { booking, payment } or 422 on overlap/error
+
+Note: No actual PayPal API integration. paypal_order_id is a demo string.
+
+
+=== ProfilesController  (api/profiles_controller.rb) ===
+
+GET  /api/profile  (authenticated)
+  - Returns user info + avatar_url (full URL to Active Storage attachment)
+
+PUT  /api/profile  (authenticated)
+  - Accepts: name, phone, avatar (file)
+  - Updates user profile and optionally replaces avatar
+
+PUT  /api/profile/password  (authenticated)
+  - Accepts: current_password, password, password_confirmation
+  - Validates current password before changing
+  - Returns 422 if current_password wrong or mismatch
+
+
+=== Admin Controllers ===
+
+AdminDashboardController  (GET /api/admin/stats)
+  - admin only
+  - Returns:
+      total_users     = User.count
+      total_vehicles  = Vehicle.count
+      total_bookings  = Booking.count
+      total_revenue   = Payment.where(status: "completed").sum(:amount)
+
+AdminUsersController
+  GET    /api/admin/users         — Lists all users
+  DELETE /api/admin/users/:id     — Deletes user (prevents self-deletion with 422)
+
+
+=== BaseController  (api/base_controller.rb) ===
+  - Shared logic for all API controllers
+  - Methods:
+      authorize_admin!   → raise 403 unless current_user.admin?
+      authorize_owner!   → raise 403 unless current_user.owner? || current_user.admin?
+
+
+------------------------------------------------------------------------
+4.4  AUTHENTICATION & AUTHORIZATION
+------------------------------------------------------------------------
+
+JWT CONFIGURATION  (config/initializers/devise.rb)
+  - JWT Secret:     Rails.application.credentials.secret_key_base or ENV fallback
+  - Token dispatch: POST /api/auth/login only
+  - Token expiry:   24 hours
+  - Revocation:     Manual JTI rotation (no separate revoked_tokens table)
+  - Algorithm:      HS256 (HMAC-SHA256, default)
+
+CUSTOM AUTH MIDDLEWARE  (application_controller.rb)
+  Method: authenticate_user!
+    1. Extracts token from "Authorization: Bearer {token}" header
+    2. Decodes JWT via Warden::JWTAuth::TokenDecoder
+    3. Finds User by payload["sub"] (user.id)
+    4. Validates user.jti == payload["jti"] (revocation check)
+    5. Sets @current_user
+    6. On any failure: renders { error: "Unauthorized" }, status: 401
+
+  Method: try_authenticate_user  (optional, for public endpoints)
+    - Same logic but silently proceeds on failure (no 401 response)
+    - Sets @current_user = nil if token missing/invalid
+
+ROLE AUTHORIZATION
+  authorize_admin!   : 403 if not admin
+  authorize_owner!   : 403 if not owner AND not admin
+  (Admin inherits all owner permissions)
+
+CORS POLICY  (config/initializers/cors.rb)
+  Origins:          http://localhost:5173 (Vite dev server)
+  Methods:          GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD
+  Headers allowed:  * (all)
+  Exposed headers:  Authorization
+  Credentials:      true
+
+
+------------------------------------------------------------------------
+4.5  ROUTES
+------------------------------------------------------------------------
+
+  namespace :api do
+
+    # Auth
+    devise_for :users, path: "auth", controllers: {
+      sessions:      "api/auth/sessions",
+      registrations: "api/auth/registrations",
+      passwords:     "api/auth/passwords"
+    }
+
+    # POST /api/auth/register
+    # POST /api/auth/login
+    # DELETE /api/auth/logout
+    # POST /api/auth/password/reset  (custom)
+
+    # Vehicles
+    resources :vehicles do
+      member do
+        put :approve   # PUT /api/vehicles/:id/approve
+        put :reject    # PUT /api/vehicles/:id/reject
+      end
+    end
+    # GET    /api/vehicles         (public browse)
+    # GET    /api/vehicles/:id     (public detail)
+    # POST   /api/vehicles         (owner: list new)
+    # PUT    /api/vehicles/:id     (owner: edit)
+    # DELETE /api/vehicles/:id     (owner: delete)
+
+    # Bookings
+    resources :bookings, only: [:index, :create, :destroy] do
+      collection { get :owner }           # GET /api/bookings/owner
+      member { put :cancel_by_owner }     # PUT /api/bookings/:id/cancel_by_owner
+    end
+
+    # Payments
+    scope :payments do
+      post "capture", to: "payments#capture"  # POST /api/payments/capture
+    end
+
+    # Profile
+    resource :profile, only: [:show, :update] do
+      put :password, on: :collection    # PUT /api/profile/password
+    end
+
+    # Admin
+    namespace :admin do
+      resources :users, only: [:index, :destroy]   # GET/DELETE /api/admin/users
+      get "stats", to: "dashboard#stats"            # GET /api/admin/stats
+    end
+
+  end
+
+
+------------------------------------------------------------------------
+4.6  SEEDS & DEMO DATA  (db/seeds.rb)
+------------------------------------------------------------------------
+
+DEMO USERS:
+  admin@vehiclerental.com   / password123   (role: admin)
+  owner@vehiclerental.com   / password123   (role: owner)
+  owner2@vehiclerental.com  / password123   (role: owner)
+  customer@vehiclerental.com/ password123   (role: customer)
+
+DEMO VEHICLES (all seeded with status: "approved"):
+
+  Owner 1 (owner@vehiclerental.com):
+    Cars:
+      BMW M4         — rate: 150/day, London
+      BMW i4         — rate: 130/day, London
+      G-Wagon        — rate: 200/day, London
+      Ford Mustang GT— rate: 120/day, Manchester
+    Bikes:
+      Kawasaki Ninja — rate: 60/day, Birmingham
+      Harley Davidson— rate: 90/day, Manchester
+
+  Owner 2 (owner2@vehiclerental.com):
+    Cars:
+      Porsche 911    — rate: 250/day, London
+      Tesla Model 3  — rate: 100/day, Edinburgh
+    Bikes:
+      Royal Enfield Classic 350 — rate: 50/day, Bristol
+      Royal Enfield Hunter 350  — rate: 55/day, Bristol
+      Jawa Bobber               — rate: 65/day, Cardiff
+
+
+------------------------------------------------------------------------
+4.7  TEST SUITE (RSpec)
+------------------------------------------------------------------------
+
+FILES:
+  spec/spec_helper.rb          — RSpec configuration
+  spec/rails_helper.rb         — Rails + FactoryBot + database cleaner setup
+  spec/factories.rb            — FactoryBot factories for User, Vehicle, Booking, Payment
+
+REQUEST SPECS:
+
+  auth_spec.rb
+    - POST /api/auth/register
+        * successful registration (customer)
+        * successful registration (owner)
+        * blocks admin self-registration
+        * returns 422 on duplicate email
+    - POST /api/auth/login
+        * success: returns JWT in Authorization header
+        * failure: wrong password returns 401
+    - DELETE /api/auth/logout
+        * revokes token (subsequent requests with same token fail)
+
+  vehicles_spec.rb
+    - GET /api/vehicles (public)
+        * returns only approved vehicles by default
+        * ?all=true returns all (admin only)
+        * ?mine=true returns owner's vehicles
+        * ?type=Car filters by type
+    - POST /api/vehicles
+        * owner can create vehicle (status=pending)
+        * customer cannot create vehicle (403)
+    - PUT /api/vehicles/:id/approve
+        * admin can approve
+        * non-admin gets 403
+    - PUT /api/vehicles/:id/reject
+        * admin can reject
+
+  bookings_spec.rb
+    - GET /api/bookings
+        * returns current user's bookings
+    - POST /api/bookings
+        * creates pending booking
+        * calculates price automatically
+    - GET /api/bookings/owner
+        * returns bookings on owner's vehicles
+    - DELETE /api/bookings/:id
+        * renter can cancel
+        * non-renter cannot cancel
+    - Overlap detection
+        * creates new booking successfully if dates don't overlap confirmed
+        * rejects booking if dates overlap confirmed booking
+
+  payments_spec.rb
+    - POST /api/payments/capture
+        * creates confirmed booking + completed payment
+        * returns 422 if dates overlap existing confirmed booking
+        * recalculates price from vehicle.rate × days
+
+  admin_spec.rb
+    - GET /api/admin/stats
+        * admin sees stats (users, vehicles, bookings, revenue)
+        * non-admin gets 403
+    - GET /api/admin/users
+        * lists all users (admin only)
+    - DELETE /api/admin/users/:id
+        * admin deletes user
+        * prevents self-deletion (422)
+
+  booking_spec.rb  (model spec)
+    - validates presence of required fields
+    - validates end_date must be after start_date
+    - detects booking overlaps on confirmed bookings
+    - calculates total_price automatically
+
+
+------------------------------------------------------------------------
+4.8  GEMFILE DEPENDENCIES
+------------------------------------------------------------------------
+
+Runtime:
+  rails              ~> 7.1.0
+  pg                 ~> 1.1         (PostgreSQL adapter)
+  puma               >= 5.0         (web server)
+  devise                            (authentication)
+  devise-jwt                        (JWT issuance/verification)
+  rack-cors                         (CORS headers)
+  image_processing   ~> 1.2         (Active Storage image transforms)
+  bootsnap                          (boot time caching)
+
+Development / Test:
+  debug
+  rspec-rails
+  factory_bot_rails
+
+
+================================================================================
+5. FRONTEND ARCHITECTURE
+================================================================================
+
+------------------------------------------------------------------------
+5.1  BUILD & CONFIGURATION
+------------------------------------------------------------------------
+
+package.json (key dependencies):
+  react                  ^18.2.0
+  react-dom              ^18.2.0
+  react-router-dom       ^6.22.0
+  axios                  ^1.6.0
+  zustand                ^4.5.2
+  @paypal/react-paypal-js           (referenced but not actively used)
+  tailwindcss            ^3.4.13
+  vite                   ^5.0.0
+  @vitejs/plugin-react   ^4.0.0
+
+vite.config.js:
+  - React plugin
+  - Dev server port: 5173
+
+tailwind.config.js:
+  - Content scans: ./src/**/*.{js,ts,jsx,tsx}
+  - Extended theme: custom colors, animations, utilities
+
+postcss.config.js:
+  - tailwindcss plugin
+  - autoprefixer plugin
+
+
+------------------------------------------------------------------------
+5.2  STATE MANAGEMENT (Zustand)
+------------------------------------------------------------------------
+
+authStore.js  (src/app/authStore.js)  — PRIMARY STORE, ACTIVELY USED
+  State:
+    user   : parsed from localStorage("user") on init, or null
+    token  : from localStorage("token") on init, or null
+  Actions:
+    setAuth(user, token)
+      → localStorage.setItem("token", token)
+      → localStorage.setItem("user", JSON.stringify(user))
+      → set({ user, token })
+    logout()
+      → localStorage.removeItem("token")
+      → localStorage.removeItem("user")
+      → set({ user: null, token: null })
+
+vehicleStore.js  (src/app/vehicleStore.js)  — LARGELY UNUSED
+  State:
+    vehicles: []  (hardcoded with placeholder data and local images)
+  Actions:
+    addVehicle, approveVehicle, rejectVehicle, deleteVehicle
+  Note: Frontend fetches vehicles from API directly; this store is dead code
+        leftover from early development.
+
+bookingStore.js  (src/app/bookingStore.js)  — UNUSED
+  State:
+    bookings: []
+  Actions:
+    addBooking, clearBookings
+  Note: No page imports this store. Effectively dead code.
+
+
+------------------------------------------------------------------------
+5.3  API SERVICE LAYER  (src/services/api.js)
+------------------------------------------------------------------------
+
+Base configuration:
+  baseURL: "http://localhost:3000/api"
+  headers: { "Content-Type": "application/json" }
+
+Request Interceptor:
+  - Reads token from localStorage("token")
+  - If present: sets Authorization: Bearer {token} header on every request
+
+Response Interceptor:
+  - On 401 Unauthorized:
+      * If the URL is NOT /auth/login or /auth/register:
+          → Clears localStorage (token + user)
+          → Redirects to /login
+      * Otherwise: passes error through (login failures handled by page)
+  - All other errors: passed through (handled by individual pages)
+
+
+------------------------------------------------------------------------
+5.4  ROUTING  (src/routes/AppRoutes.jsx)
+------------------------------------------------------------------------
+
+PUBLIC ROUTES (no auth required):
+  /                     → Home.jsx
+  /login                → Login.jsx
+  /register             → Register.jsx
+  /vehicles             → Vehicles.jsx
+  /vehicles/:id         → VehicleDetails.jsx
+  /forgot-password      → ForgotPassword.jsx
+
+PROTECTED ROUTES (require auth token):
+  /dashboard            → Dashboard.jsx
+  /history              → History.jsx
+  /profile              → Profile.jsx
+  /payment              → Payment.jsx
+
+OWNER-ONLY ROUTES (role: owner or admin):
+  /list-vehicle         → ListVehicle.jsx
+  /edit-vehicle/:id     → EditVehicle.jsx
+  /owner-dashboard      → OwnerDashboard.jsx
+
+ADMIN-ONLY ROUTES (role: admin):
+  /admin                → AdminDashboard.jsx
+
+ProtectedRoute props:
+  requireAuth    : boolean — redirect to /login if no token
+  requireAdmin   : boolean — redirect to / if not admin
+  requireOwner   : boolean — redirect to / if not owner/admin
+
+
+------------------------------------------------------------------------
+5.5  PAGES
+------------------------------------------------------------------------
+
+Home.jsx
+  - Hero section with background zoom animation
+  - Typing animation intro text
+  - Feature cards: Easy Booking, Wide Selection, Best Prices, 24/7 Support, Secure Payments
+  - Stats: 500+ Vehicles, 10,000+ Customers, 50+ Locations, 4.9★ Rating
+  - CTA buttons: Browse Vehicles → /vehicles, List Your Vehicle → /list-vehicle
+  - Animations: fadeIn, slideUp, pop on scroll for stats
+
+Login.jsx
+  - Renders LoginForm component
+  - LoginForm calls POST /api/auth/login
+  - Extracts JWT from response.headers["authorization"]
+  - Stores via authStore.setAuth(user, token)
+  - Shows success overlay with green checkmark
+  - Redirects to /dashboard after 1.5s
+
+Register.jsx
+  - Form fields: Full Name, Email, Password, Confirm Password, Role (selector)
+  - Role selector: Customer (default) | Vehicle Owner
+  - Admin role not offered in UI
+  - Calls POST /api/auth/register
+  - Shows success overlay → redirects to /login
+
+Vehicles.jsx
+  - Fetches GET /api/vehicles on mount
+  - Filter controls:
+      Search bar (name)
+      Type buttons: All | Cars | Bikes
+      Location dropdown
+      Max price slider/input
+  - Grid layout: 3 columns (desktop), 2 (tablet), 1 (mobile)
+  - Each vehicle card: image, name, location, type, rate, "View Details" button
+  - Image fallback: https://picsum.photos/seed/vehicle-{id}/800/500
+
+VehicleDetails.jsx
+  - Fetches GET /api/vehicles/:id
+  - Displays: image, name, model, type, location, rate, description
+  - Shows confirmed booking date ranges as "unavailable" notice
+  - Date pickers: start_date, end_date
+  - Client-side overlap validation against confirmed bookings
+  - Calculates total price: days × rate
+  - "Confirm Booking" button stores booking data in sessionStorage/state
+    and navigates to /payment
+
+Dashboard.jsx
+  - Simple role-based landing page
+  - Customer: "Browse Vehicles" button → /vehicles
+  - Owner: "List Your Vehicle" → /list-vehicle, "Owner Dashboard" → /owner-dashboard
+  - Admin: "Admin Dashboard" → /admin
+
+Payment.jsx
+  - Reads booking data from router state (passed from VehicleDetails)
+  - Booking summary: vehicle name, dates, total price
+  - Mock card form: Cardholder Name, Card Number (16 digits), Expiry, CVV
+  - No real PayPal integration
+  - On submit:
+      * Generates fake txn ID: "DEMO-" + Math.random().toString(36)
+      * Calls POST /api/payments/capture with vehicle_id, start_date, end_date,
+        total_price, paypal_order_id (fake), payer_name
+  - Success: popup overlay → redirect to /history
+  - Failure: shows error message
+
+History.jsx
+  - Fetches GET /api/bookings on mount
+  - Shows each booking as a card:
+      Vehicle name, start date, end date
+      Total price, status badge
+      Payment ID (paypal_order_id), Payer name
+  - No cancel functionality on this page
+  - Empty state: "No bookings yet"
+
+ListVehicle.jsx
+  - Two-tab layout:
+
+  Tab 1: List New Vehicle
+    Form fields: Vehicle Name, Type (Car/Bike), Model, Location, Daily Rate,
+                 Description, Upload Images
+    Sends FormData to POST /api/vehicles
+    Image preview before upload
+    Success: shows confirmation, resets form
+
+  Tab 2: My Listings
+    Fetches GET /api/vehicles?mine=true
+    Shows vehicle cards with status badge (pending/approved/rejected)
+    Pending vehicles show "Awaiting admin approval" note
+    Edit button → /edit-vehicle/:id
+    Delete button → DELETE /api/vehicles/:id
+
+EditVehicle.jsx
+  - Fetches GET /api/vehicles/:id on mount to pre-fill form
+  - Same form fields as ListVehicle Tab 1
+  - Image replacement (optional)
+  - Sends PUT /api/vehicles/:id with FormData
+  - Cancel → navigates back to /owner-dashboard
+
+OwnerDashboard.jsx
+  - Summary cards: Total Vehicles, Active Bookings, Total Earnings, Pending Reviews
+  - Earnings calculated: sum of confirmed booking total_prices
+  - My Vehicles section: lists all owner vehicles with Edit/Delete
+  - Booking Notifications: GET /api/bookings/owner
+      Shows each booking with renter info, dates, amount, status
+      Cancel Booking button → PUT /api/bookings/:id/cancel_by_owner
+  - Quick Actions: "Add Vehicle" → /list-vehicle, "View Listings" → /list-vehicle
+
+AdminDashboard.jsx
+  - Stats row (GET /api/admin/stats):
+      Total Users, Total Vehicles, Total Bookings, Total Revenue
+  - Pending Vehicles section:
+      GET /api/vehicles?all=true → filter status=pending
+      Each card: vehicle name, owner, rate, Approve / Reject buttons
+      Approve → PUT /api/vehicles/:id/approve
+      Reject  → PUT /api/vehicles/:id/reject
+  - Approved Vehicles section:
+      Filter status=approved
+      Each card: vehicle name, Delete button
+      Delete → DELETE /api/vehicles/:id
+  - User Management section:
+      GET /api/admin/users
+      Lists all users (name, email, role)
+      Delete button → DELETE /api/admin/users/:id
+      Cannot delete self (backend enforced)
+
+Profile.jsx
+  - Fetches GET /api/profile on mount
+  - Avatar circle: shows uploaded avatar or initials placeholder
+  - Upload avatar: file input → replaces on form submit
+  - Edit fields: Name, Email (read-only), Phone
+  - Submit → PUT /api/profile with FormData
+  - Change Password section (separate form):
+      Fields: Current Password, New Password, Confirm New Password
+      Validation: min 6 chars, passwords must match
+      Submit → PUT /api/profile/password
+  - Logout button:
+      Calls DELETE /api/auth/logout (revokes JWT)
+      Calls authStore.logout() (clears localStorage)
+      Navigates to /login
+
+ForgotPassword.jsx
+  - Email input
+  - Calls POST /api/auth/password/reset (demo mode — no real email)
+  - Success overlay → redirect to /login
+  - Note: No link to this page from Navbar or Login page currently
+
+
+------------------------------------------------------------------------
+5.6  COMPONENTS
+------------------------------------------------------------------------
+
+Navbar.jsx  (src/components/common/Navbar.jsx)
+  - Golden background (#d4af37)
+  - Brand: "Bibbin" logo/wordmark
+  - Links shown to ALL authenticated users:
+      Browse (/vehicles), Dashboard (/dashboard), History (/history), Profile (/profile)
+  - Links shown to OWNER and ADMIN only:
+      List Vehicle (/list-vehicle), Owner Dashboard (/owner-dashboard)
+  - Links shown to ADMIN only:
+      Admin Panel (/admin)
+  - Unauthenticated: Login, Register links
+  - Logout button: calls DELETE /api/auth/logout + authStore.logout()
+
+Footer.jsx
+  - Copyright © 2026 Bibbin
+  - Links: Privacy Policy, Terms of Service, Contact
+
+LoginForm.jsx  (src/components/common/LoginForm.jsx)
+  - Reusable form component
+  - Email + Password inputs
+  - Calls POST /api/auth/login via api service
+  - Extracts JWT from Authorization response header
+  - Shows success overlay with animated checkmark
+  - Redirects to /dashboard on success
+
+ProtectedRoute.jsx  (src/components/common/ProtectedRoute.jsx)
+  - Wrapper around React Router <Outlet />
+  - Checks: token exists (else /login)
+  - Checks: requireAdmin → user.role === "admin" (else /)
+  - Checks: requireOwner → user.role in ["owner","admin"] (else /)
+
+VehicleCard.jsx  (src/components/vehicle/VehicleCard.jsx)
+  - Generic card component (props: vehicle object)
+  - Mostly unused — Vehicles.jsx renders cards inline
+
+
+------------------------------------------------------------------------
+5.7  STYLING  (src/index.css)
+------------------------------------------------------------------------
+
+Custom Utility Classes:
+  .app-container   → max-w-7xl mx-auto px-6
+  .card            → bg-white rounded-xl shadow-md border border-gray-100
+  .btn             → inline-flex items-center justify-center rounded-lg font-medium
+  .btn-primary     → gold background (#d4af37), dark text, hover darken
+  .btn-secondary   → white background, gold border, gold text
+
+Color Palette:
+  Primary gold:    #d4af37
+  Background:      #f9fafb (light gray)
+  Dark text:       #111827
+  Border/muted:    #e5e7eb
+
+CSS Animations:
+  fadeIn         : opacity 0→1 over 0.5s
+  slideUp        : translateY(20px)→0 over 0.6s
+  pop            : scale(0.8)→1.05→1 over 0.4s (for stats)
+  glow           : box-shadow pulse on cards
+  zoom           : scale 1→1.15 over 10s (hero background)
+  typing         : width animation for typewriter effect
+  drive          : translateX(-100%)→100% (vehicle icon animation)
+
+Scrollbar Customization:
+  Thin webkit scrollbar with gold thumb
+
+
+================================================================================
+6. KEY WORKFLOWS
+================================================================================
+
+------------------------------------------------------------------------
+6.1  CUSTOMER BOOKING FLOW
+------------------------------------------------------------------------
+
+1. Register at /register (select "Customer" role)
+   → POST /api/auth/register → user created (role: customer)
+
+2. Login at /login
+   → POST /api/auth/login → JWT returned in Authorization header
+   → Token stored in localStorage
+
+3. Browse vehicles at /vehicles
+   → GET /api/vehicles → approved vehicles fetched
+   → Filter by name, location, type, price
+
+4. View vehicle details at /vehicles/:id
+   → GET /api/vehicles/:id → full vehicle info + confirmed booking dates
+   → Select start and end dates
+   → Client-side validation: dates must not overlap confirmed bookings
+   → Total price calculated: days × vehicle.rate
+
+5. Confirm booking → navigate to /payment with booking data
+
+6. Payment at /payment
+   → Fill mock card form (name, number, expiry, CVV)
+   → Generate fake PayPal txn ID
+   → POST /api/payments/capture
+   → Server creates confirmed booking + payment record
+
+7. View booking history at /history
+   → GET /api/bookings → all user's bookings shown
+
+------------------------------------------------------------------------
+6.2  OWNER LISTING FLOW
+------------------------------------------------------------------------
+
+1. Register at /register (select "Vehicle Owner" role)
+   → POST /api/auth/register → user created (role: owner)
+
+2. Login → JWT stored
+
+3. List vehicle at /list-vehicle (Tab 1)
+   → Fill form: name, type, model, location, rate, description, images
+   → POST /api/vehicles with FormData
+   → Vehicle created with status: "pending"
+
+4. Wait for admin approval
+   → Status shown as "pending" in My Listings tab
+
+5. Admin approves → status becomes "approved"
+   → Vehicle is now visible in public browse
+
+6. View bookings at /owner-dashboard
+   → GET /api/bookings/owner → all bookings on owner's vehicles
+   → See earnings, active bookings, notifications
+
+7. Optionally cancel a booking
+   → PUT /api/bookings/:id/cancel_by_owner
+
+8. Edit vehicle at /edit-vehicle/:id
+   → PUT /api/vehicles/:id with updated data
+
+------------------------------------------------------------------------
+6.3  ADMIN APPROVAL FLOW
+------------------------------------------------------------------------
+
+1. Login with admin account
+
+2. Navigate to /admin (Admin Dashboard)
+
+3. View stats: total_users, total_vehicles, total_bookings, total_revenue
+   → GET /api/admin/stats
+
+4. Review pending vehicles
+   → GET /api/vehicles?all=true → filter by status=pending
+   → Click "Approve" → PUT /api/vehicles/:id/approve
+   → Or "Reject"  → PUT /api/vehicles/:id/reject
+
+5. Manage users
+   → GET /api/admin/users → list all users
+   → Delete user → DELETE /api/admin/users/:id
+   → Cannot delete self (protected by backend)
+
+6. Monitor all vehicles
+   → Approved vehicles shown; can delete any vehicle
+
+
+================================================================================
+7. CRITICAL FEATURE IMPLEMENTATIONS
+================================================================================
+
+FEATURE 1: JWT Token Revocation
+  - On logout: user.jti is rotated (new random UUID assigned)
+  - Any existing token with old jti fails validation
+  - Prevents token reuse after logout
+  - Implementation: SessionsController#destroy updates jti in DB
+
+FEATURE 2: Booking Overlap Detection  (Booking model)
+  - Overlap query:
+      WHERE vehicle_id = ? AND status = 'confirmed'
+        AND start_date < {new_end_date}
+        AND end_date   > {new_start_date}
+  - Only CONFIRMED bookings count (pending/cancelled don't block dates)
+  - Validated both in model (backend) and in VehicleDetails.jsx (frontend)
+  - Frontend check is UX only; backend is authoritative
+
+FEATURE 3: Automatic Price Calculation
+  - Model before_validation callback
+  - days = (end_date - start_date).to_i
+  - total_price = days * vehicle.rate
+  - Server always recalculates; frontend preview is informational only
+  - Prevents price manipulation from client
+
+FEATURE 4: Role-Based Navbar + Routes
+  - Navbar dynamically shows/hides links based on user.role from authStore
+  - Routes wrapped in ProtectedRoute with requireAdmin/requireOwner flags
+  - Backend independently enforces authorization (not just frontend guards)
+
+FEATURE 5: Image Handling
+  - Backend: Active Storage multiple image attach (has_many_attached :images)
+  - URLs generated server-side and returned in JSON response
+  - Frontend: displays image_url from API; falls back to picsum.photos
+  - Backend: falls back to hardcoded URL map for known vehicle names
+
+FEATURE 6: Owner Earnings Calculation
+  - OwnerDashboard sums total_price of all confirmed bookings on owner's vehicles
+  - GET /api/bookings/owner returns confirmed bookings with amounts
+
+
+================================================================================
+8. ISSUES & INCONSISTENCIES
+================================================================================
+
+ISSUE 1: vehicleStore.js — Dead Code
+  Severity: LOW
+  Description: vehicleStore.js contains hardcoded vehicles with imported local
+               images. No page imports or uses this store; all vehicle data
+               is fetched from the API.
+  Impact: Wasted bundle size (~50KB estimated for imported images), confusing
+          code for future developers.
+  Recommendation: Remove vehicleStore.js or repurpose as a real API cache.
+
+ISSUE 2: bookingStore.js — Dead Code
+  Severity: LOW
+  Description: bookingStore.js is created and exported but never imported
+               anywhere in the application.
+  Impact: Confusing but harmless.
+  Recommendation: Remove or implement a use case for it.
+
+ISSUE 3: ForgotPassword Not Linked in UI
+  Severity: MEDIUM
+  Description: /forgot-password route and ForgotPassword.jsx exist and work,
+               but there is no link from the Login page or Navbar to this page.
+               Users cannot discover this feature.
+  Recommendation: Add "Forgot Password?" link in LoginForm.jsx.
+
+ISSUE 4: Active Storage Not Configured for Production
+  Severity: MEDIUM (would break in production)
+  Description: config/storage.yml only has :local disk storage. Production
+               deployments need S3, Google Cloud Storage, or similar.
+  Recommendation: Add :amazon or :google storage service in storage.yml and
+                  configure in production.rb.
+
+ISSUE 5: Image Fallback Inconsistency
+  Severity: LOW
+  Description: Backend has a hardcoded fallback map for known vehicle names
+               (by name string matching). Frontend uses picsum.photos for any
+               vehicle without an Active Storage image.
+  Impact: These two fallback strategies are semantically different. A new
+          vehicle with an unrecognized name gets a random stock photo backend-
+          side, then picsum frontend-side. Inconsistent user experience.
+  Recommendation: Standardize to one approach (prefer Active Storage uploads).
+
+ISSUE 6: Mock Payment with No Real PayPal Integration
+  Severity: MEDIUM-HIGH (user education issue)
+  Description: Payment.jsx shows a card form but all transactions are fake.
+               @paypal/react-paypal-js is listed in package.json but unused.
+               Fake txn IDs are stored in the database.
+  Impact: Fine for a demo/academic project. Misleading for real deployment.
+  Recommendation: For production, replace with real PayPal or Stripe SDK.
+                  For demo, clearly label the form as "Simulated Payment".
+
+ISSUE 7: Avatar URL Relative Paths
+  Severity: LOW
+  Description: Profile.jsx fetches avatar_url from API (a relative path like
+               /rails/active_storage/blobs/...) and must prepend the base URL
+               to construct a full image URL. Not all pages follow this same
+               pattern consistently.
+  Recommendation: Have backend return absolute URLs, or use a helper function
+                  across all avatar displays.
+
+ISSUE 8: No Pagination
+  Severity: LOW (small dataset, academic project)
+  Description: GET /api/vehicles, /api/admin/users, and booking lists return
+               all records with no pagination or limit.
+  Impact: Acceptable for demo. Would be a performance issue at scale.
+
+ISSUE 9: Hardcoded API Base URL
+  Severity: LOW
+  Description: api.js has baseURL: "http://localhost:3000/api" hardcoded.
+  Recommendation: Use import.meta.env.VITE_API_BASE_URL for configurability.
+
+ISSUE 10: No Password Strength Enforcement Beyond Minimum Length
+  Severity: LOW
+  Description: Frontend validates minimum 6 characters. No complexity rules.
+               Backend uses Devise default (also 6 chars minimum).
+
+
+================================================================================
+9. SECURITY ANALYSIS
+================================================================================
+
+STRENGTHS:
+  1. JWT tokens expire in 24 hours (limits exposure if stolen)
+  2. JTI-based revocation on logout (explicit invalidation)
+  3. Role checks enforced server-side (not just frontend guards)
+  4. Password hashing via Devise (bcrypt)
+  5. Admin role cannot be self-assigned during registration
+  6. CORS limited to localhost:5173 (no wildcard origins)
+  7. Booking overlap validation prevents double-booking fraud
+  8. Admin cannot delete themselves (prevents accidental lockout)
+  9. Email uniqueness enforced at DB level
+
+CONSIDERATIONS / POTENTIAL RISKS:
+  1. localStorage for JWT storage
+     Standard practice for SPAs, but XSS attacks could steal tokens.
+     Mitigation: httpOnly cookies are more secure for production.
+
+  2. No HTTPS enforced
+     JWT tokens in Authorization headers are sent in plaintext over HTTP in dev.
+     Production MUST use HTTPS.
+
+  3. Demo password reset bypasses email verification
+     Any actor who knows an email can reset that user's password.
+     Acceptable for academic demo; MUST be replaced for real deployment.
+
+  4. No rate limiting
+     Login endpoint is vulnerable to brute force attacks.
+     Recommendation: Add rack-attack gem for rate limiting.
+
+  5. No CSRF tokens
+     Not needed for JWT/API-only architecture (no cookie-based sessions).
+
+  6. API error messages may expose internal details
+     Some error renders include raw exception messages in development.
+     Ensure production uses generic error messages (already true for 401/403).
+
+  7. No input sanitization beyond Rails strong params
+     SQL injection is mitigated by ActiveRecord parameterized queries.
+     XSS: React escapes output by default (low risk).
+
+
+================================================================================
+10. SETUP & DEPLOYMENT GUIDE
+================================================================================
+
+PREREQUISITES:
+  - Ruby 3.2.x
+  - Node.js 16+ and npm 8+
+  - PostgreSQL 12+
+  - Git
+
+BACKEND SETUP:
+  cd D:\LUCINTEL-PROJETCS\BIBBIN_\backend
+
+  1. Install gems:
+       bundle install
+
+  2. Configure database:
+       Edit config/database.yml — set username, password for PostgreSQL
+       Or set DATABASE_PASSWORD environment variable
+
+  3. Create and migrate database:
+       rails db:create
+       rails db:migrate
+
+  4. Install Active Storage tables:
+       rails active_storage:install
+       rails db:migrate
+
+  5. Seed demo data:
+       rails db:seed
+
+  6. Start server:
+       rails server
+       → Running at http://localhost:3000
+
+FRONTEND SETUP:
+  cd D:\LUCINTEL-PROJETCS\BIBBIN_\frontend
+
+  1. Install dependencies:
+       npm install
+
+  2. Start dev server:
+       npm run dev
+       → Running at http://localhost:5173
+
+RUNNING TESTS (Backend):
+  cd backend
+  bundle exec rspec                      # all tests
+  bundle exec rspec spec/requests/       # request specs only
+  bundle exec rspec spec/models/         # model specs only
+
+DEMO CREDENTIALS:
+  Admin:     admin@vehiclerental.com    / password123
+  Owner 1:   owner@vehiclerental.com    / password123
+  Owner 2:   owner2@vehiclerental.com   / password123
+  Customer:  customer@vehiclerental.com / password123
+
+PRODUCTION DEPLOYMENT CHECKLIST:
+  Backend:
+    [ ] Set RAILS_ENV=production
+    [ ] Set SECRET_KEY_BASE environment variable (for JWT + encryption)
+    [ ] Set DATABASE_URL or individual DB env vars
+    [ ] Configure Active Storage for cloud (S3, Google Cloud, etc.)
+        Update config/storage.yml and config/environments/production.rb
+    [ ] Update CORS origin in config/initializers/cors.rb to production domain
+    [ ] Enable HTTPS (configure reverse proxy or platform SSL)
+    [ ] Configure real email service for Devise mailers
+    [ ] Add rack-attack for rate limiting
+    [ ] Run: rails assets:precompile (if serving any assets)
+
+  Frontend:
+    [ ] Update VITE_API_BASE_URL to production API URL
+    [ ] Build: npm run build
+    [ ] Serve dist/ folder via CDN or static hosting
+    [ ] Configure production domain in environment
+
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================
+Generated: March 2026
+Platform:  Bibbin Vehicle Rental — BSc CS Final Year Project
